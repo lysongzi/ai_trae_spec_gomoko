@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import RandomAI from '../ai/aiPlayer';
 import type { Player, BoardState, GameConfig } from '../types';
 
 interface UseGomokuReturn {
@@ -8,6 +9,9 @@ interface UseGomokuReturn {
   placeStone: (row: number, col: number) => void;
   resetGame: (config: GameConfig) => void;
   isDraw: boolean;
+  isAITurn: boolean;
+  movesCount: number;
+  score: number;
 }
 
 const DIRECTIONS = [
@@ -22,6 +26,11 @@ export const useGomoku = (): UseGomokuReturn => {
   const [currentPlayer, setCurrentPlayer] = useState<Player>('black');
   const [winner, setWinner] = useState<Player | null>(null);
   const [isDraw, setIsDraw] = useState(false);
+  const [isAITurn, setIsAITurn] = useState(false);
+  const [playerSide, setPlayerSide] = useState<Player>('black');
+  const [movesCount, setMovesCount] = useState(0);
+  const [score, setScore] = useState(0);
+  const aiRef = useRef(new RandomAI());
 
   const initializeBoard = useCallback((config: GameConfig) => {
     const newBoard: BoardState = Array(config.boardSize).fill(null).map(() => 
@@ -31,6 +40,10 @@ export const useGomoku = (): UseGomokuReturn => {
     setCurrentPlayer('black'); // Black always starts first in standard rules
     setWinner(null);
     setIsDraw(false);
+    setIsAITurn(false);
+    setPlayerSide(config.playerSide);
+    setMovesCount(0);
+    setScore(0);
   }, []);
 
   const checkWin = (board: BoardState, row: number, col: number, player: Player) => {
@@ -66,22 +79,64 @@ export const useGomoku = (): UseGomokuReturn => {
     return board.every(row => row.every(cell => cell !== null));
   };
 
-  const placeStone = useCallback((row: number, col: number) => {
-    if (winner || isDraw || board[row][col] !== null) return;
-
-    // Create a new board copy
-    const newBoard = board.map(r => [...r]);
-    newBoard[row][col] = currentPlayer;
+  const applyMove = useCallback((targetBoard: BoardState, row: number, col: number, player: Player) => {
+    const newBoard = targetBoard.map(r => [...r]);
+    newBoard[row][col] = player;
     setBoard(newBoard);
 
-    if (checkWin(newBoard, row, col, currentPlayer)) {
-      setWinner(currentPlayer);
-    } else if (checkDraw(newBoard)) {
-      setIsDraw(true);
-    } else {
-      setCurrentPlayer(prev => prev === 'black' ? 'white' : 'black');
+    if (player === playerSide) {
+      setMovesCount(prev => prev + 1);
+      setScore(prev => prev + 10);
     }
-  }, [board, currentPlayer, winner, isDraw]);
+
+    if (checkWin(newBoard, row, col, player)) {
+      setWinner(player);
+      if (player === playerSide) {
+        setScore(prev => prev + 100);
+      } else {
+        setScore(prev => prev - 100);
+      }
+      return { board: newBoard, ended: true, nextPlayer: player };
+    }
+    if (checkDraw(newBoard)) {
+      setIsDraw(true);
+      return { board: newBoard, ended: true, nextPlayer: player };
+    }
+    const nextPlayer: Player = player === 'black' ? 'white' : 'black';
+    setCurrentPlayer(nextPlayer);
+    return { board: newBoard, ended: false, nextPlayer };
+  }, [checkWin, checkDraw, playerSide]);
+
+  const placeStone = useCallback((row: number, col: number) => {
+    if (winner || isDraw || isAITurn || board[row][col] !== null) return;
+    if (currentPlayer !== playerSide) return;
+
+    const result = applyMove(board, row, col, currentPlayer);
+    if (!result || result.ended) return;
+
+    const next = result.nextPlayer;
+    if (next !== playerSide) {
+      setIsAITurn(true);
+      const aiMove = aiRef.current.chooseMove(result.board, next);
+      if (aiMove) {
+        applyMove(result.board, aiMove.row, aiMove.col, next);
+      }
+      setIsAITurn(false);
+    }
+  }, [winner, isDraw, isAITurn, board, currentPlayer, playerSide, applyMove]);
+
+  useEffect(() => {
+    if (winner || isDraw) return;
+    if (board.length === 0) return;
+    if (isAITurn) return;
+    if (currentPlayer === playerSide) return;
+    setIsAITurn(true);
+    const aiMove = aiRef.current.chooseMove(board, currentPlayer);
+    if (aiMove) {
+      applyMove(board, aiMove.row, aiMove.col, currentPlayer);
+    }
+    setIsAITurn(false);
+  }, [board, currentPlayer, playerSide, isAITurn, winner, isDraw, applyMove]);
 
   return {
     board,
@@ -89,6 +144,9 @@ export const useGomoku = (): UseGomokuReturn => {
     winner,
     placeStone,
     resetGame: initializeBoard,
-    isDraw
+    isDraw,
+    isAITurn,
+    movesCount,
+    score
   };
 };

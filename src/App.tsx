@@ -7,7 +7,7 @@ import { useGomoku } from './hooks/useGomoku';
 
 function App() {
   const [gameConfig, setGameConfig] = useState<GameConfig | null>(null);
-  const { board, currentPlayer, winner, placeStone, resetGame, isDraw } = useGomoku();
+  const { board, currentPlayer, winner, placeStone, resetGame, isDraw, movesCount, score } = useGomoku();
 
   const handleStartGame = (config: GameConfig) => {
     setGameConfig(config);
@@ -56,6 +56,16 @@ function App() {
                 {currentPlayer.toUpperCase()}
               </span>
             </div>
+            <div>
+              Moves: <span style={{ color: 'var(--color-secondary)' }}>
+                {movesCount}
+              </span>
+            </div>
+            <div>
+              Score: <span style={{ color: 'var(--color-accent)' }}>
+                {score}
+              </span>
+            </div>
           </div>
 
           <Board 
@@ -96,8 +106,11 @@ function App() {
                 <h2 style={{ fontSize: '3rem', color: 'var(--color-accent)', marginBottom: '1rem' }}>
                   {winner ? `${winner.toUpperCase()} WINS` : 'DRAW'}
                 </h2>
-                <p style={{ marginBottom: '2rem', fontSize: '1.2rem' }}>
+                <p style={{ marginBottom: '0.75rem', fontSize: '1.2rem' }}>
                   {winner ? 'Sequence Complete. Target Eliminated.' : 'Stalemate Detected.'}
+                </p>
+                <p style={{ marginBottom: '2rem', fontSize: '1.2rem', color: 'var(--color-secondary)' }}>
+                  Final Score: <span style={{ color: 'var(--color-accent)' }}>{score}</span>
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                   <button onClick={handleRestart} style={{ fontSize: '1.2rem' }}>

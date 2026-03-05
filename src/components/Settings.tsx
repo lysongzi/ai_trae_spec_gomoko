@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import type React from 'react';
 import type { GameConfig, Player } from '../types';
 
 interface SettingsProps {
@@ -55,7 +56,7 @@ const Settings: React.FC<SettingsProps> = ({ onStartGame }) => {
 
         <div className="form-group">
           <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-secondary)' }}>
-            Select Faction
+            Select Faction (opponent is AI)
           </label>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <label style={{ 
